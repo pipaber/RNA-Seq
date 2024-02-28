@@ -9,7 +9,7 @@ and Interchange DTD v1.2 20190208//EN" "JATS-archivearticle1.dtd">
 <journal-id></journal-id>
 
 <journal-title-group>
-<journal-title>Earth and Space Science</journal-title>
+<journal-title>An open source portfolio</journal-title>
 </journal-title-group>
 <issn></issn>
 
@@ -23,59 +23,34 @@ and Interchange DTD v1.2 20190208//EN" "JATS-archivearticle1.dtd">
 
 
 <title-group>
-<article-title>La Palma Earthquakes</article-title>
+<article-title>Analysis of RNA-Seq Data</article-title>
 </title-group>
 
 <contrib-group>
 <contrib contrib-type="author" corresp="yes">
-<contrib-id contrib-id-type="orcid">0000-0002-0760-5497</contrib-id>
+<contrib-id contrib-id-type="orcid">0000-0001-6729-4080</contrib-id>
 <name>
-<surname>Purves</surname>
-<given-names>Steve</given-names>
+<surname>Bernuy</surname>
+<given-names>Piero Palacios</given-names>
 </name>
-<string-name>Steve Purves</string-name>
+<string-name>Piero Palacios Bernuy</string-name>
 
-<email>steve@curvenote.com</email>
+<email>p.palacios.bernuy@gmail.com</email>
 <role vocab="https://credit.niso.org" vocab-term="investigation" vocab-term-identifier="https://credit.niso.org/contributor-roles/investigation/">Investigation</role>
-<role vocab="https://credit.niso.org" vocab-term="project
-administration" vocab-term-identifier="https://credit.niso.org/contributor-roles/project-administration/">Project
-administration</role>
-<role vocab="https://credit.niso.org" vocab-term="software" vocab-term-identifier="https://credit.niso.org/contributor-roles/software/">Software</role>
+<role>Bioinformatics</role>
+<role>Deep learning</role>
 <role vocab="https://credit.niso.org" vocab-term="visualization" vocab-term-identifier="https://credit.niso.org/contributor-roles/visualization/">Visualization</role>
-<xref ref-type="aff" rid="aff-1">a</xref>
 <xref ref-type="corresp" rid="cor-1">&#x002A;</xref>
 </contrib>
-<contrib contrib-type="author">
-<contrib-id contrib-id-type="orcid">0000-0002-7859-8394</contrib-id>
-<name>
-<surname>Cockett</surname>
-<given-names>Rowan</given-names>
-</name>
-<string-name>Rowan Cockett</string-name>
-
-<xref ref-type="aff" rid="aff-1">a</xref>
-</contrib>
 </contrib-group>
-<aff id="aff-1">
-<institution-wrap>
-<institution>Curvenote</institution>
-</institution-wrap>
-
-
-
-
-
-
-
-</aff>
 <author-notes>
-<corresp id="cor-1">steve@curvenote.com</corresp>
+<corresp id="cor-1">p.palacios.bernuy@gmail.com</corresp>
 </author-notes>
 
-<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-02-24">
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-02-28">
 <year>2024</year>
 <month>2</month>
-<day>24</day>
+<day>28</day>
 </pub-date>
 
 
@@ -88,15 +63,17 @@ administration</role>
 
 
 <abstract>
-<p>In September 2021, a significant jump in seismic activity on the
-island of La Palma (Canary Islands, Spain) signaled the start of a
-volcanic crisis that still continues at the time of writing. Earthquake
-data is continually collected and published by the Instituto Geográphico
-Nacional (IGN). …</p>
+<p>This document is part of a series of the analysis of Omics data.
+Especifycally, here is showed how to analyze bulk RNA-Seq data with
+Bioconductor packages. Also, it’s showcased how to make plots of the rna
+data in the context of differentially gene expression and gene-sets.</p>
 </abstract>
 <kwd-group kwd-group-type="author">
-<kwd>La Palma</kwd>
-<kwd>Earthquakes</kwd>
+<kwd>RNA</kwd>
+<kwd>reads</kwd>
+<kwd>gene expression</kwd>
+<kwd>gene sets</kwd>
+<kwd>ontologies</kwd>
 </kwd-group>
 
 
@@ -109,372 +86,311 @@ Nacional (IGN). …</p>
 <body>
 <sec id="introduction">
   <title>1 Introduction</title>
-  <fig id="fig-timeline">
-    <caption><p>Figure 1: Timeline of recent earthquakes on La
-    Palma</p></caption>
-    <graphic mimetype="image" mime-subtype="png" xlink:href="index_files/figure-jats/fig-timeline-1.png" />
-  </fig>
-  <p>Based on data up to and including 1971, eruptions on La Palma
-  happen every 79.8 years on average.</p>
-  <p>Studies of the magma systems feeding the volcano, such as Marrero
-  et al.
-  (<xref alt="2019" rid="ref-marrero2019" ref-type="bibr">2019</xref>),
-  have proposed that there are two main magma reservoirs feeding the
-  Cumbre Vieja volcano; one in the mantle (30-40km depth) which charges
-  and in turn feeds a shallower crustal reservoir (10-20km depth).</p>
-  <p>Eight eruptions have been recorded since the late 1400s
-  (<xref alt="Figure 1" rid="fig-timeline">Figure 1</xref>).</p>
-  <p>Data and methods are discussed in
-  <xref alt="Section 2" rid="sec-data-methods">Section 2</xref>.</p>
-  <p>Let <inline-formula><alternatives>
-  <tex-math><![CDATA[x]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
-  denote the number of eruptions in a year. Then,
-  <inline-formula><alternatives>
-  <tex-math><![CDATA[x]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
-  can be modeled by a Poisson distribution</p>
-  <p><styled-content id="eq-poisson"><disp-formula><alternatives>
-  <tex-math><![CDATA[
-  p(x) = \frac{e^{-\lambda} \lambda^{x}}{x !}
-   \qquad(1)]]></tex-math>
-  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:msup><mml:mi>e</mml:mi><mml:mrow><mml:mo>−</mml:mo><mml:mi>λ</mml:mi></mml:mrow></mml:msup><mml:msup><mml:mi>λ</mml:mi><mml:mi>x</mml:mi></mml:msup></mml:mrow><mml:mrow><mml:mi>x</mml:mi><mml:mi>!</mml:mi></mml:mrow></mml:mfrac><mml:mspace width="2.0em"></mml:mspace><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula></styled-content></p>
-  <p>where <inline-formula><alternatives>
-  <tex-math><![CDATA[\lambda]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>λ</mml:mi></mml:math></alternatives></inline-formula>
-  is the rate of eruptions per year. Using
-  <xref alt="Equation 1" rid="eq-poisson">Equation 1</xref>, the
-  probability of an eruption in the next <inline-formula><alternatives>
-  <tex-math><![CDATA[t]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula>
-  years can be calculated.</p>
-  <fig id="tbl-history">
-    <caption><p>Table 1: Recent historic eruptions on La
-    Palma</p></caption>
-    <table-wrap>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Year</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Current</td>
-            <td>2021</td>
-          </tr>
-          <tr>
-            <td>Teneguía</td>
-            <td>1971</td>
-          </tr>
-          <tr>
-            <td>Nambroque</td>
-            <td>1949</td>
-          </tr>
-          <tr>
-            <td>El Charco</td>
-            <td>1712</td>
-          </tr>
-          <tr>
-            <td>Volcán San Antonio</td>
-            <td>1677</td>
-          </tr>
-          <tr>
-            <td>Volcán San Martin</td>
-            <td>1646</td>
-          </tr>
-          <tr>
-            <td>Tajuya near El Paso</td>
-            <td>1585</td>
-          </tr>
-          <tr>
-            <td>Montaña Quemada</td>
-            <td>1492</td>
-          </tr>
-        </tbody>
-      </table>
-    </table-wrap>
-  </fig>
-  <p><xref alt="Table 1" rid="tbl-history">Table 1</xref> summarises the
-  eruptions recorded since the colonization of the islands by Europeans
-  in the late 1400s.</p>
-  <fig id="fig-map">
-    <caption><p>Figure 2: Map of La Palma</p></caption>
-    <graphic mimetype="image" mime-subtype="png" xlink:href="images/la-palma-map.png" />
-  </fig>
-  <p>La Palma is one of the west most islands in the Volcanic
-  Archipelago of the Canary Islands
-  (<xref alt="Figure 2" rid="fig-map">Figure 2</xref>).</p>
-  <fig id="fig-spatial-plot">
-    <caption><p>Figure 3: Locations of earthquakes on La Palma since
-    2017</p></caption>
-    <graphic mimetype="image" mime-subtype="png" xlink:href="index_files/figure-jats/notebooks-explore-earthquakes-fig-spatial-plot-output-1.png" />
-  </fig>
-  <p><xref alt="Figure 3" rid="fig-spatial-plot">Figure 3</xref> shows
-  the location of recent Earthquakes on La Palma.</p>
+  <p>hola</p>
 </sec>
 <sec id="sec-data-methods">
   <title>2 Data &amp; Methods</title>
+  <p>pre-filtering</p>
+  <p>re-leveling</p>
+  <p>differential gene expression</p>
+  <preformat>log2 fold change (MLE): dex trt vs untrt 
+Wald test p-value: dex trt vs untrt 
+DataFrame with 16596 rows and 6 columns
+                 baseMean log2FoldChange     lfcSE      stat      pvalue
+                &lt;numeric&gt;      &lt;numeric&gt; &lt;numeric&gt; &lt;numeric&gt;   &lt;numeric&gt;
+ENSG00000000003   709.880     -0.3839261 0.1008515 -3.806846 1.40750e-04
+ENSG00000000419   521.156      0.2041705 0.1116546  1.828590 6.74611e-02
+ENSG00000000457   237.573      0.0352858 0.1412422  0.249825 8.02723e-01
+ENSG00000000460    58.035     -0.0923157 0.2792981 -0.330527 7.41002e-01
+ENSG00000000971  5826.538      0.4237405 0.0893546  4.742236 2.11372e-06
+...                   ...            ...       ...       ...         ...
+ENSG00000273448  14.02944      0.0583225  0.483593  0.120603    0.904006
+ENSG00000273472  11.08483     -0.4087635  0.558196 -0.732294    0.463989
+ENSG00000273486  15.47814     -0.1516640  0.471121 -0.321922    0.747512
+ENSG00000273487   8.17605      1.0408751  0.678127  1.534926    0.124802
+ENSG00000273488   8.59778      0.1088526  0.618005  0.176136    0.860187
+                       padj
+                  &lt;numeric&gt;
+ENSG00000000003 1.09455e-03
+ENSG00000000419 1.85852e-01
+ENSG00000000457 9.04035e-01
+ENSG00000000460 8.71680e-01
+ENSG00000000971 2.48262e-05
+...                     ...
+ENSG00000273448    0.954503
+ENSG00000273472    0.675274
+ENSG00000273486    0.874323
+ENSG00000273487    0.292586
+ENSG00000273488    0.933030</preformat>
 </sec>
 <sec id="conclusion">
   <title>3 Conclusion</title>
+  <p>hola</p>
+</sec>
+<sec id="references">
+  <title>References</title>
 </sec>
 </body>
 
 <back>
-<ref-list>
-  <title>References</title>
-  <ref id="ref-marrero2019">
-    <element-citation publication-type="article-journal">
-      <person-group person-group-type="author">
-        <name><surname>Marrero</surname><given-names>José</given-names></name>
-        <name><surname>García</surname><given-names>Alicia</given-names></name>
-        <name><surname>Berrocoso</surname><given-names>Manuel</given-names></name>
-        <name><surname>Llinares</surname><given-names>Ángeles</given-names></name>
-        <name><surname>Rodríguez-Losada</surname><given-names>Antonio</given-names></name>
-        <name><surname>Ortiz</surname><given-names>R.</given-names></name>
-      </person-group>
-      <article-title>Strategies for the development of volcanic hazard maps in monogenetic volcanic fields: The example of La Palma (Canary Islands)</article-title>
-      <source>Journal of Applied Volcanology</source>
-      <year iso-8601-date="2019-07">2019</year><month>07</month>
-      <volume>8</volume>
-      <pub-id pub-id-type="doi">10.1186/s13617-019-0085-5</pub-id>
-      <fpage></fpage>
-      <lpage></lpage>
-    </element-citation>
-  </ref>
-</ref-list>
 </back>
 
 <sub-article article-type="notebook" id="nb-8-nb-article">
 <front-stub>
 <title-group>
-<article-title>La Palma Earthquakes</article-title>
+<article-title>Analysis of RNA-Seq Data</article-title>
 </title-group>
 <contrib-group>
 <contrib contrib-type="author" corresp="yes">
-<contrib-id contrib-id-type="orcid">0000-0002-0760-5497</contrib-id>
+<contrib-id contrib-id-type="orcid">0000-0001-6729-4080</contrib-id>
 <name>
-<surname>Purves</surname>
-<given-names>Steve</given-names>
+<surname>Bernuy</surname>
+<given-names>Piero Palacios</given-names>
 </name>
-<string-name>Steve Purves</string-name>
+<string-name>Piero Palacios Bernuy</string-name>
 
-<email>steve@curvenote.com</email>
+<email>p.palacios.bernuy@gmail.com</email>
 <role vocab="https://credit.niso.org" vocab-term="investigation" vocab-term-identifier="https://credit.niso.org/contributor-roles/investigation/">Investigation</role>
-<role vocab="https://credit.niso.org" vocab-term="project
-administration" vocab-term-identifier="https://credit.niso.org/contributor-roles/project-administration/">Project
-administration</role>
-<role vocab="https://credit.niso.org" vocab-term="software" vocab-term-identifier="https://credit.niso.org/contributor-roles/software/">Software</role>
+<role>Bioinformatics</role>
+<role>Deep learning</role>
 <role vocab="https://credit.niso.org" vocab-term="visualization" vocab-term-identifier="https://credit.niso.org/contributor-roles/visualization/">Visualization</role>
-<xref ref-type="aff" rid="aff-1-nb-article">a</xref>
 <xref ref-type="corresp" rid="cor-1-nb-article">&#x002A;</xref>
 </contrib>
-<contrib contrib-type="author">
-<contrib-id contrib-id-type="orcid">0000-0002-7859-8394</contrib-id>
-<name>
-<surname>Cockett</surname>
-<given-names>Rowan</given-names>
-</name>
-<string-name>Rowan Cockett</string-name>
-
-<xref ref-type="aff" rid="aff-1-nb-article">a</xref>
-</contrib>
 </contrib-group>
-<aff id="aff-1-nb-article">
-<institution-wrap>
-<institution>Curvenote</institution>
-</institution-wrap>
-
-
-
-
-
-
-
-</aff>
 <author-notes>
-<corresp id="cor-1-nb-article">steve@curvenote.com</corresp>
+<corresp id="cor-1-nb-article">p.palacios.bernuy@gmail.com</corresp>
 </author-notes>
 <abstract>
-<p>In September 2021, a significant jump in seismic activity on the
-island of La Palma (Canary Islands, Spain) signaled the start of a
-volcanic crisis that still continues at the time of writing. Earthquake
-data is continually collected and published by the Instituto Geográphico
-Nacional (IGN). …</p>
+<p>This document is part of a series of the analysis of Omics data.
+Especifycally, here is showed how to analyze bulk RNA-Seq data with
+Bioconductor packages. Also, it’s showcased how to make plots of the rna
+data in the context of differentially gene expression and gene-sets.</p>
 </abstract>
 </front-stub>
 
 <body>
 <sec id="introduction-nb-article">
   <title>1 Introduction</title>
-  <sec id="nb-code-cell-1-nb-article" specific-use="notebook-code">
-  <code language="r script">eruptions &lt;- c(1492, 1585, 1646, 1677, 1712, 1949, 1971, 2021)
-n_eruptions &lt;- length(eruptions)</code>
-  </sec>
-  <sec id="cell-fig-timeline-nb-article" specific-use="notebook-code">
-  <code language="r script">par(mar = c(3, 1, 1, 1) + 0.1)
-plot(eruptions, rep(0, n_eruptions), 
-  pch = &quot;|&quot;, axes = FALSE)
-axis(1)
-box()</code>
-  <fig id="fig-timeline-nb-article">
-    <caption><p>Figure 1: Timeline of recent earthquakes on La
-    Palma</p></caption>
-    <graphic mimetype="image" mime-subtype="png" xlink:href="index_files/figure-jats/fig-timeline-1.png" />
-  </fig>
-  </sec>
-  <sec id="nb-code-cell-2-nb-article" specific-use="notebook-code">
-  <code language="r script">avg_years_between_eruptions &lt;- mean(diff(eruptions[-n_eruptions]))
-avg_years_between_eruptions</code>
-  <sec id="nb-code-cell-2-output-0-nb-article" specific-use="notebook-output">
-  <preformat>[1] 79.83333</preformat>
-  </sec>
-  </sec>
-  <p>Based on data up to and including 1971, eruptions on La Palma
-  happen every 79.8 years on average.</p>
-  <p>Studies of the magma systems feeding the volcano, such as Marrero
-  et al.
-  (<xref alt="2019" rid="ref-marrero2019-nb-article" ref-type="bibr">2019</xref>),
-  have proposed that there are two main magma reservoirs feeding the
-  Cumbre Vieja volcano; one in the mantle (30-40km depth) which charges
-  and in turn feeds a shallower crustal reservoir (10-20km depth).</p>
-  <p>Eight eruptions have been recorded since the late 1400s
-  (<xref alt="Figure 1" rid="fig-timeline-nb-article">Figure 1</xref>).</p>
-  <p>Data and methods are discussed in
-  <xref alt="Section 2" rid="sec-data-methods-nb-article">Section 2</xref>.</p>
-  <p>Let <inline-formula><alternatives>
-  <tex-math><![CDATA[x]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
-  denote the number of eruptions in a year. Then,
-  <inline-formula><alternatives>
-  <tex-math><![CDATA[x]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
-  can be modeled by a Poisson distribution</p>
-  <p><styled-content id="eq-poisson-nb-article"><disp-formula><alternatives>
-  <tex-math><![CDATA[
-  p(x) = \frac{e^{-\lambda} \lambda^{x}}{x !}
-   \qquad(1)]]></tex-math>
-  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:msup><mml:mi>e</mml:mi><mml:mrow><mml:mo>−</mml:mo><mml:mi>λ</mml:mi></mml:mrow></mml:msup><mml:msup><mml:mi>λ</mml:mi><mml:mi>x</mml:mi></mml:msup></mml:mrow><mml:mrow><mml:mi>x</mml:mi><mml:mi>!</mml:mi></mml:mrow></mml:mfrac><mml:mspace width="2.0em"></mml:mspace><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula></styled-content></p>
-  <p>where <inline-formula><alternatives>
-  <tex-math><![CDATA[\lambda]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>λ</mml:mi></mml:math></alternatives></inline-formula>
-  is the rate of eruptions per year. Using
-  <xref alt="Equation 1" rid="eq-poisson-nb-article">Equation 1</xref>, the
-  probability of an eruption in the next <inline-formula><alternatives>
-  <tex-math><![CDATA[t]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula>
-  years can be calculated.</p>
-  <fig id="tbl-history-nb-article">
-    <caption><p>Table 1: Recent historic eruptions on La
-    Palma</p></caption>
-    <table-wrap>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Year</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Current</td>
-            <td>2021</td>
-          </tr>
-          <tr>
-            <td>Teneguía</td>
-            <td>1971</td>
-          </tr>
-          <tr>
-            <td>Nambroque</td>
-            <td>1949</td>
-          </tr>
-          <tr>
-            <td>El Charco</td>
-            <td>1712</td>
-          </tr>
-          <tr>
-            <td>Volcán San Antonio</td>
-            <td>1677</td>
-          </tr>
-          <tr>
-            <td>Volcán San Martin</td>
-            <td>1646</td>
-          </tr>
-          <tr>
-            <td>Tajuya near El Paso</td>
-            <td>1585</td>
-          </tr>
-          <tr>
-            <td>Montaña Quemada</td>
-            <td>1492</td>
-          </tr>
-        </tbody>
-      </table>
-    </table-wrap>
-  </fig>
-  <p><xref alt="Table 1" rid="tbl-history-nb-article">Table 1</xref> summarises the
-  eruptions recorded since the colonization of the islands by Europeans
-  in the late 1400s.</p>
-  <fig id="fig-map-nb-article">
-    <caption><p>Figure 2: Map of La Palma</p></caption>
-    <graphic mimetype="image" mime-subtype="png" xlink:href="images/la-palma-map.png" />
-  </fig>
-  <p>La Palma is one of the west most islands in the Volcanic
-  Archipelago of the Canary Islands
-  (<xref alt="Figure 2" rid="fig-map-nb-article">Figure 2</xref>).</p>
-  <sec id="cell-fig-spatial-plot-nb-article" specific-use="notebook-code">
-  <code language="python">la_palma |&gt; 
-  ggplot(aes(Longitude, Latitude)) +
-  geom_point(aes(color = Magnitude, size = 40-`Depth(km)`)) +
-  scale_color_viridis_c(direction = -1) + 
-  scale_size(range = c(0.5, 2), guide = &quot;none&quot;) +
-  theme_bw()</code>
-  <sec id="cell-fig-spatial-plot-output-0-nb-article" specific-use="notebook-output">
-  <fig id="fig-spatial-plot-nb-article">
-    <caption><p>Figure 3: Locations of earthquakes on La Palma since
-    2017</p></caption>
-    <graphic mimetype="image" mime-subtype="png" xlink:href="index_files/figure-jats/notebooks-explore-earthquakes-fig-spatial-plot-output-1.png" />
-  </fig>
-  </sec>
-  </sec>
-  <p><xref alt="Figure 3" rid="fig-spatial-plot-nb-article">Figure 3</xref> shows
-  the location of recent Earthquakes on La Palma.</p>
+  <p>hola</p>
 </sec>
 <sec id="sec-data-methods-nb-article">
   <title>2 Data &amp; Methods</title>
+  <sec id="nb-code-cell-1-nb-article" specific-use="notebook-code">
+  <code language="r script">library(airway)</code>
+  <code language="r script">library(DESeq2)</code>
+  <code language="r script">data(&quot;airway&quot;)
+
+dds &lt;- DESeqDataSet(se = airway, design = ~ cell + dex)</code>
+  <sec id="nb-code-cell-1-output-0-nb-article" specific-use="notebook-output">
+  <preformat>Loading required package: SummarizedExperiment</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-1-nb-article" specific-use="notebook-output">
+  <preformat>Warning: package 'SummarizedExperiment' was built under R version 4.3.1</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-2-nb-article" specific-use="notebook-output">
+  <preformat>Loading required package: MatrixGenerics</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-3-nb-article" specific-use="notebook-output">
+  <preformat>Warning: package 'MatrixGenerics' was built under R version 4.3.1</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-4-nb-article" specific-use="notebook-output">
+  <preformat>Loading required package: matrixStats</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-5-nb-article" specific-use="notebook-output">
+  <preformat>Warning: package 'matrixStats' was built under R version 4.3.1</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-6-nb-article" specific-use="notebook-output">
+  <preformat>
+Attaching package: 'MatrixGenerics'</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-7-nb-article" specific-use="notebook-output">
+  <preformat>The following objects are masked from 'package:matrixStats':
+
+    colAlls, colAnyNAs, colAnys, colAvgsPerRowSet, colCollapse,
+    colCounts, colCummaxs, colCummins, colCumprods, colCumsums,
+    colDiffs, colIQRDiffs, colIQRs, colLogSumExps, colMadDiffs,
+    colMads, colMaxs, colMeans2, colMedians, colMins, colOrderStats,
+    colProds, colQuantiles, colRanges, colRanks, colSdDiffs, colSds,
+    colSums2, colTabulates, colVarDiffs, colVars, colWeightedMads,
+    colWeightedMeans, colWeightedMedians, colWeightedSds,
+    colWeightedVars, rowAlls, rowAnyNAs, rowAnys, rowAvgsPerColSet,
+    rowCollapse, rowCounts, rowCummaxs, rowCummins, rowCumprods,
+    rowCumsums, rowDiffs, rowIQRDiffs, rowIQRs, rowLogSumExps,
+    rowMadDiffs, rowMads, rowMaxs, rowMeans2, rowMedians, rowMins,
+    rowOrderStats, rowProds, rowQuantiles, rowRanges, rowRanks,
+    rowSdDiffs, rowSds, rowSums2, rowTabulates, rowVarDiffs, rowVars,
+    rowWeightedMads, rowWeightedMeans, rowWeightedMedians,
+    rowWeightedSds, rowWeightedVars</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-8-nb-article" specific-use="notebook-output">
+  <preformat>Loading required package: GenomicRanges</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-9-nb-article" specific-use="notebook-output">
+  <preformat>Loading required package: stats4</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-10-nb-article" specific-use="notebook-output">
+  <preformat>Loading required package: BiocGenerics</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-11-nb-article" specific-use="notebook-output">
+  <preformat>
+Attaching package: 'BiocGenerics'</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-12-nb-article" specific-use="notebook-output">
+  <preformat>The following objects are masked from 'package:stats':
+
+    IQR, mad, sd, var, xtabs</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-13-nb-article" specific-use="notebook-output">
+  <preformat>The following objects are masked from 'package:base':
+
+    anyDuplicated, aperm, append, as.data.frame, basename, cbind,
+    colnames, dirname, do.call, duplicated, eval, evalq, Filter, Find,
+    get, grep, grepl, intersect, is.unsorted, lapply, Map, mapply,
+    match, mget, order, paste, pmax, pmax.int, pmin, pmin.int,
+    Position, rank, rbind, Reduce, rownames, sapply, setdiff, sort,
+    table, tapply, union, unique, unsplit, which.max, which.min</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-14-nb-article" specific-use="notebook-output">
+  <preformat>Loading required package: S4Vectors</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-15-nb-article" specific-use="notebook-output">
+  <preformat>
+Attaching package: 'S4Vectors'</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-16-nb-article" specific-use="notebook-output">
+  <preformat>The following object is masked from 'package:utils':
+
+    findMatches</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-17-nb-article" specific-use="notebook-output">
+  <preformat>The following objects are masked from 'package:base':
+
+    expand.grid, I, unname</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-18-nb-article" specific-use="notebook-output">
+  <preformat>Loading required package: IRanges</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-19-nb-article" specific-use="notebook-output">
+  <preformat>
+Attaching package: 'IRanges'</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-20-nb-article" specific-use="notebook-output">
+  <preformat>The following object is masked from 'package:grDevices':
+
+    windows</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-21-nb-article" specific-use="notebook-output">
+  <preformat>Loading required package: GenomeInfoDb</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-22-nb-article" specific-use="notebook-output">
+  <preformat>Loading required package: Biobase</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-23-nb-article" specific-use="notebook-output">
+  <preformat>Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with
+    'browseVignettes()'. To cite Bioconductor, see
+    'citation(&quot;Biobase&quot;)', and for packages 'citation(&quot;pkgname&quot;)'.</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-24-nb-article" specific-use="notebook-output">
+  <preformat>
+Attaching package: 'Biobase'</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-25-nb-article" specific-use="notebook-output">
+  <preformat>The following object is masked from 'package:MatrixGenerics':
+
+    rowMedians</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-26-nb-article" specific-use="notebook-output">
+  <preformat>The following objects are masked from 'package:matrixStats':
+
+    anyMissing, rowMedians</preformat>
+  </sec>
+  <sec id="nb-code-cell-1-output-27-nb-article" specific-use="notebook-output">
+  <preformat>Warning: package 'DESeq2' was built under R version 4.3.1</preformat>
+  </sec>
+  </sec>
+  <p>pre-filtering</p>
+  <sec id="nb-code-cell-2-nb-article" specific-use="notebook-code">
+  <code language="r script">keep &lt;- rowSums(counts(dds)&gt;= 10) &gt;= 3
+
+dds &lt;- dds[keep,]</code>
+  </sec>
+  <p>re-leveling</p>
+  <sec id="nb-code-cell-3-nb-article" specific-use="notebook-code">
+  <code language="r script">dds$dex &lt;- factor(dds$dex, levels = c(&quot;untrt&quot;,&quot;trt&quot;))
+dds$dex &lt;- relevel(dds$dex, ref = &quot;untrt&quot;)
+dds$dex &lt;- droplevels(dds$dex)</code>
+  </sec>
+  <p>differential gene expression</p>
+  <sec id="nb-code-cell-4-nb-article" specific-use="notebook-code">
+  <code language="r script">dds &lt;- DESeq(dds)</code>
+  <code language="r script">res &lt;- results(dds)
+
+res</code>
+  <sec id="nb-code-cell-4-output-0-nb-article" specific-use="notebook-output">
+  <preformat>estimating size factors</preformat>
+  </sec>
+  <sec id="nb-code-cell-4-output-1-nb-article" specific-use="notebook-output">
+  <preformat>estimating dispersions</preformat>
+  </sec>
+  <sec id="nb-code-cell-4-output-2-nb-article" specific-use="notebook-output">
+  <preformat>gene-wise dispersion estimates</preformat>
+  </sec>
+  <sec id="nb-code-cell-4-output-3-nb-article" specific-use="notebook-output">
+  <preformat>mean-dispersion relationship</preformat>
+  </sec>
+  <sec id="nb-code-cell-4-output-4-nb-article" specific-use="notebook-output">
+  <preformat>final dispersion estimates</preformat>
+  </sec>
+  <sec id="nb-code-cell-4-output-5-nb-article" specific-use="notebook-output">
+  <preformat>fitting model and testing</preformat>
+  </sec>
+  <sec id="nb-code-cell-4-output-6-nb-article" specific-use="notebook-output">
+  <preformat>log2 fold change (MLE): dex trt vs untrt 
+Wald test p-value: dex trt vs untrt 
+DataFrame with 16596 rows and 6 columns
+                 baseMean log2FoldChange     lfcSE      stat      pvalue
+                &lt;numeric&gt;      &lt;numeric&gt; &lt;numeric&gt; &lt;numeric&gt;   &lt;numeric&gt;
+ENSG00000000003   709.880     -0.3839261 0.1008515 -3.806846 1.40750e-04
+ENSG00000000419   521.156      0.2041705 0.1116546  1.828590 6.74611e-02
+ENSG00000000457   237.573      0.0352858 0.1412422  0.249825 8.02723e-01
+ENSG00000000460    58.035     -0.0923157 0.2792981 -0.330527 7.41002e-01
+ENSG00000000971  5826.538      0.4237405 0.0893546  4.742236 2.11372e-06
+...                   ...            ...       ...       ...         ...
+ENSG00000273448  14.02944      0.0583225  0.483593  0.120603    0.904006
+ENSG00000273472  11.08483     -0.4087635  0.558196 -0.732294    0.463989
+ENSG00000273486  15.47814     -0.1516640  0.471121 -0.321922    0.747512
+ENSG00000273487   8.17605      1.0408751  0.678127  1.534926    0.124802
+ENSG00000273488   8.59778      0.1088526  0.618005  0.176136    0.860187
+                       padj
+                  &lt;numeric&gt;
+ENSG00000000003 1.09455e-03
+ENSG00000000419 1.85852e-01
+ENSG00000000457 9.04035e-01
+ENSG00000000460 8.71680e-01
+ENSG00000000971 2.48262e-05
+...                     ...
+ENSG00000273448    0.954503
+ENSG00000273472    0.675274
+ENSG00000273486    0.874323
+ENSG00000273487    0.292586
+ENSG00000273488    0.933030</preformat>
+  </sec>
+  </sec>
 </sec>
 <sec id="conclusion-nb-article">
   <title>3 Conclusion</title>
+  <p>hola</p>
+</sec>
+<sec id="references-nb-article">
+  <title>References</title>
 </sec>
 </body>
 
 
 
 <back>
-<ref-list>
-  <title>References</title>
-  <ref id="ref-marrero2019-nb-article">
-    <element-citation publication-type="article-journal">
-      <person-group person-group-type="author">
-        <name><surname>Marrero</surname><given-names>José</given-names></name>
-        <name><surname>García</surname><given-names>Alicia</given-names></name>
-        <name><surname>Berrocoso</surname><given-names>Manuel</given-names></name>
-        <name><surname>Llinares</surname><given-names>Ángeles</given-names></name>
-        <name><surname>Rodríguez-Losada</surname><given-names>Antonio</given-names></name>
-        <name><surname>Ortiz</surname><given-names>R.</given-names></name>
-      </person-group>
-      <article-title>Strategies for the development of volcanic hazard maps in monogenetic volcanic fields: The example of La Palma (Canary Islands)</article-title>
-      <source>Journal of Applied Volcanology</source>
-      <year iso-8601-date="2019-07">2019</year><month>07</month>
-      <volume>8</volume>
-      <pub-id pub-id-type="doi">10.1186/s13617-019-0085-5</pub-id>
-      <fpage></fpage>
-      <lpage></lpage>
-    </element-citation>
-  </ref>
-</ref-list>
 </back>
 
 
