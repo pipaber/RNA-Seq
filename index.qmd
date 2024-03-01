@@ -37,8 +37,27 @@ hola
 ## Data & Methods {#sec-data-methods}
 
 ```{r}
+#| echo: true
+
 library(airway)
 library(DESeq2)
+library(tinytex)
+library(tidyverse)
+library(htmltools)
+library("RColorBrewer")
+library(rafalib)
+library(heatmaply)
+library(htmltools)
+library(vsn)
+library(pheatmap)
+library(genefilter)
+
+```
+
+
+```{r}
+#| echo: true
+
 
 data("airway")
 
@@ -49,7 +68,7 @@ dds <- DESeqDataSet(se = airway, design = ~ cell + dex)
 pre-filtering
 
 ```{r}
-
+#| echo: true
 keep <- rowSums(counts(dds)>= 10) >= 3
 
 dds <- dds[keep,]
@@ -60,22 +79,106 @@ dds <- dds[keep,]
 re-leveling
 
 ```{r}
-
+#| echo: true
 dds$dex <- factor(dds$dex, levels = c("untrt","trt"))
 dds$dex <- relevel(dds$dex, ref = "untrt")
 dds$dex <- droplevels(dds$dex)
 
 ```
 
+quality control
+
+```{r}
+rld <- rlog(dds)
+
+hex_df<-data.frame(Means=rowMeans(assay(rld)),
+                   Sds=rowSds(assay(rld)))
+
+gghex<-hex_df |> 
+  ggplot(aes(Means,Sds))+
+  geom_hex(alpha=0.8,bins=40)+
+  guides(fill=guide_colourbar(title = "Counts"))+
+  labs(x="Sorted mean of normalized counts per gene",
+       y="Standard deviation of normalized counts per gene")+
+  theme_minimal()+
+  geom_smooth(aes(Means,Sds),colour="red",linewidth=0.5)
+
+bslib::card(full_screen = T, bslib::card_title("Stabilized Variance"), plotly::ggplotly(gghex))
+
+```
+
+
+```{r}
+dds<-estimateSizeFactors(dds)
+select <- order(rowMeans(counts(dds,normalized=TRUE)),
+                decreasing=TRUE)[1:20]
+
+sampleDists <- dist(t(assay(rld)))
+
+sampleDistMatrix <- as.matrix(sampleDists)
+
+ggheat<-heatmaply(sampleDistMatrix,
+            row_side_colors = colData(rld)[,c("dex","cell")],
+            row_dend_left = F)
+
+bslib::card(full_screen = T, bslib::card_title("Stabilized Variance"), ggheat)
+```
+
+
 differential gene expression
+
+
+```{r}
+library(apeglm)
+library(munsell)
+library(org.Hs.eg.db)
+library(rols)
+library(fgsea)
+library(GeneTonic)
+library(plotly)
+library(htmltools)
+library(htmlwidgets)
+library(viridis)
+library(clusterProfiler)
+library(scales)
+library(ReactomePA)
+library(DOSE)
+```
+
 
 ```{r}
 dds <- DESeq(dds)
 
-res <- results(dds)
+res <- results(dds, lfcThreshold = 1, alpha = 0.05, test = "Wald")
 
-res
+res.lfc <- lfcShrink(dds, type = "apeglm", lfcThreshold = 1, coef = 5)
 ```
+
+
+```{r}
+a<-plotMA(res.lfc,alpha=0.05,returnData=T)
+
+a$symbol<-rownames(a)
+a$label<-NA
+a$label[a$isDE == TRUE] <- a$symbol[a$isDE == TRUE]
+
+p <- ggplot(a, aes(log10(mean), lfc, colour = isDE)) +
+    geom_point(alpha = 0.2, size = 0.8) +
+    geom_hline(aes(yintercept = 0), col = "red", alpha = 0.6) +
+    geom_rug() +
+    geom_hline(yintercept = c(-1, 1), color = "midnightblue") +
+    scale_colour_manual(
+      name = paste0("FDR = ", 0.05),
+      values = c(mnsl("5PB 2/4"), mnsl("5R 5/16")),
+      labels = c("no DE", "DE")
+    ) +
+    labs(
+      y = "Shrunken log2foldchange",
+      x = "Mean of normalized counts (log10 scale)",
+      title = "Bland-Altman Plot"
+    )
+```
+
 
 
 ## Conclusion
