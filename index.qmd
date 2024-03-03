@@ -51,7 +51,10 @@ library(htmltools)
 library(vsn)
 library(pheatmap)
 library(genefilter)
-
+library(EnsDb.Hsapiens.v75)
+library(org.Hs.eg.db)
+library(reticulate)
+library(igraph)
 ```
 
 
@@ -177,8 +180,395 @@ p <- ggplot(a, aes(log10(mean), lfc, colour = isDE)) +
       x = "Mean of normalized counts (log10 scale)",
       title = "Bland-Altman Plot"
     )
+
+p
 ```
 
+top 20 expressed genes
+
+```{r}
+df<-heatmaply::heatmaply(assay(rld)[select,],
+                         col_side_colors=colData(rld)[,c("dex","cell")])
+
+bslib::card(df, full_screen = T)
+```
+
+retrieving annotation from v75
+
+```{r}
+k<-keys(org.Hs.eg.db)
+
+
+a <- AnnotationDbi::select(
+        org.Hs.eg.db,
+        keys = k,
+        keytype = "ENTREZID",
+        columns = c("SYMBOL", "GENENAME")
+      )
+
+
+anno_df <- data.frame(
+  gene_id = rownames(dds),
+  gene_name = mapIds(
+    org.Hs.eg.db,
+    keys = rownames(dds),
+    column = "SYMBOL",
+    keytype = "ENSEMBL"
+  ),
+  gene_entrez = mapIds(
+    org.Hs.eg.db,
+    keys = rownames(dds),
+    keytype = "ENSEMBL",
+    column = "ENTREZID"
+  ),
+  stringsAsFactors = FALSE,
+  row.names = rownames(dds)
+)
+
+
+res.lfc$SYMBOL <-
+      anno_df$gene_name[match(rownames(res.lfc), anno_df$gene_id)]
+
+
+```
+
+construction of ranks
+
+```{r}
+res.lfc_for_ranks <-
+      res.lfc%>%
+      as.data.frame()%>%
+      dplyr::select(SYMBOL,log2FoldChange)%>%
+      na.omit()%>%
+      distinct()%>%
+      group_by(SYMBOL)%>%
+      summarize(log2FoldChange=mean(log2FoldChange))
+    
+res.lfc_ranks <-
+      deframe(res.lfc_for_ranks)
+```
+
+genetonic workflow
+
+```{r}
+ranks_entrez<-bitr(names(res.lfc_ranks),fromType = "SYMBOL",toType = "ENTREZID",OrgDb = org.Hs.eg.db)
+
+entrez_res.lfc_ranks<-res.lfc_ranks[ranks_entrez$SYMBOL]
+
+# names(res.lfc_ranks)<-ranks_entrez$ENTREZID
+names(entrez_res.lfc_ranks) <- ranks_entrez$ENTREZID
+
+res.lfc_fgsea_GOclu_BP <-
+      gseGO(
+        geneList = sort(entrez_res.lfc_ranks, decreasing = T),
+        OrgDb = org.Hs.eg.db,
+        ont = "BP",
+        pvalueCutoff = 1,
+        verbose = F
+      )
+
+res.lfc_fgsea_GOclu_BP <-
+      setReadable(res.lfc_fgsea_GOclu_BP,
+                  "org.Hs.eg.db",
+                  keyType = "ENTREZID")
+
+res.lfc_fgsea_GOclu_BP_shaked <-
+  shake_gsenrichResult(res.lfc_fgsea_GOclu_BP)
+
+res.lfc_fgsea_GOclu_BP_shaked_aggr <-
+  get_aggrscores(
+    res_enrich = res.lfc_fgsea_GOclu_BP_shaked,
+    res_de = res.lfc,
+    annotation_obj = anno_df,
+    aggrfun = mean
+  )
+
+gtl_res_GOclu_BP <- GeneTonic_list(
+  dds = dds,
+  res_de = res,
+  res_enrich = res.lfc_fgsea_GOclu_BP_shaked_aggr,
+  annotation_obj = anno_df
+)
+
+```
+
+plots
+
+```{r}
+p<-gs_summary_heat(gtl = gtl_res_GOclu_BP,
+                    n_gs=30)
+p
+```
+
+graphs
+
+```{r}
+library(visNetwork)
+library(magrittr)
+
+
+ggs <- ggs_graph(gtl = gtl_res_GOclu_BP, n_gs = 100)
+data <- toVisNetworkData(ggs)
+
+data$nodes <- data$nodes %>%
+  mutate(group = nodetype, nodetype = NULL) %>%
+  dplyr::select(-color)
+
+p <- visNetwork(nodes = data$nodes, edges = data$edges) %>%
+  visIgraphLayout() %>%
+  visOptions(
+    highlightNearest = list(
+      enabled = TRUE,
+      degree = 1,
+      hover = TRUE
+    ),
+    nodesIdSelection = TRUE
+  ) %>%
+  visPhysics(stabilization = FALSE) %>%
+  visGroups(groupname = "GeneSet", color = "rgb(187,210,185)") %>%
+  visGroups(groupname = "Feature", color = "rgb(255,192,139)")
+
+htmltools::tagList(list(p))
+```
+
+igraph object manipulation
+
+bipartite
+```{r}
+V(ggs)$group <- data$nodes$group
+
+V(ggs)$type_bipartite <- as.integer(V(ggs)$group == "Feature")
+
+
+adj_matrix_bipartite <- as.matrix(as_adjacency_matrix(ggs, sparse = FALSE)) |> as.data.frame()
+
+```
+
+```{python}
+import pandas as pd
+import numpy as np
+import networkx as nx
+import seaborn as sns 
+from matplotlib import pyplot as plt
+
+graph = r.adj_matrix_bipartite
+
+G = nx.from_pandas_adjacency(graph, create_using=nx.DiGraph)
+
+```
+
+```{python}
+
+degree_sequence = sorted((i[1] for i in G.degree), reverse=True)
+
+sns.kdeplot(degree_sequence)
+sns.rugplot(degree_sequence)
+plt.show()
+
+```
+
+
+```{python}
+
+h, a = nx.algorithms.link_analysis.hits(G, max_iter=1000000)
+# nx.set_node_attributes(G, metric, name='hubs_centrality')
+
+df_hubs = pd.DataFrame.from_dict(h, orient="index").sort_values(by=[0], ascending=False)
+df_authorities = pd.DataFrame.from_dict(a, orient="index").sort_values(by=[0], ascending=False)
+
+```
+
+```{r}
+
+df_a <- py$df_hubs |> 
+  rename("Hubs Centrality"="0")
+
+df_b <- py$df_authorities |> 
+  rename("Authorities Centrality" = "0")
+
+htmltools::tagList(list(DT::datatable(df_a)))
+
+htmltools::tagList(list(DT::datatable(df_b)))
+
+
+```
+
+```{r}
+query <- res.lfc[which(res.lfc$SYMBOL=="FGFR2"),] |> rownames()
+
+res[which(rownames(res)==query),]
+```
+
+
+
+```{python}
+
+import matplotlib.colors as mcolors
+
+def draw(G, pos, measures, measure_name):
+    
+    nodes = nx.draw_networkx_nodes(G, pos, node_size=10, cmap=plt.cm.plasma, 
+                                   node_color=list(measures.values()),
+                                   nodelist=measures.keys())
+    nodes.set_norm(mcolors.SymLogNorm(linthresh=0.01, linscale=1, base=10))
+    labels = nx.draw_networkx_labels(G, pos, font_size=0.4)
+    edges = nx.draw_networkx_edges(G, pos)
+
+    plt.title(measure_name)
+    plt.colorbar(nodes)
+    plt.axis('off')
+    plt.show()
+    
+pos = nx.spring_layout(G)
+
+draw(G, pos, h, 'DiGraph HITS Hubs')
+draw(G, pos, a, 'DiGraph HITS Authorities')
+```
+
+
+
+unipartite
+```{r}
+
+V(ggs)$group <- data$nodes$group
+
+# ontologies <- V(ggs)[group == "GeneSet"]
+# genes <- V(ggs)[group == "Feature"]
+
+adj_matrix_full <- as.matrix(as_adjacency_matrix(ggs, sparse = FALSE))
+
+ontology_indices <- match(V(ggs)[group == "GeneSet"], V(ggs))
+gene_indices <- match(V(ggs)[group == "Feature"], V(ggs))
+
+adj_matrix_ontology_genes <- adj_matrix_full[ontology_indices, gene_indices] 
+
+
+ontology_coupling <- adj_matrix_ontology_genes %*% t(adj_matrix_ontology_genes)
+
+ontology_coupling <- ontology_coupling |> as.data.frame()
+
+```
+
+
+
+networkx for genesets
+
+```{python}
+
+graph = r.ontology_coupling
+
+G = nx.from_pandas_adjacency(graph, create_using=nx.Graph)
+G.remove_edges_from(nx.selfloop_edges(G))
+
+```
+
+```{python}
+
+degree_centrality = nx.degree_centrality(G)
+nx.set_node_attributes(G, degree_centrality, name='degree_centrality')
+
+betweenness_centrality = nx.betweenness_centrality(G, normalized=True)
+nx.set_node_attributes(G, betweenness_centrality, name='betweenness_centrality')
+
+eigenvector_centrality = nx.eigenvector_centrality(G, max_iter=1000000)
+nx.set_node_attributes(G, eigenvector_centrality, name='eigenvector_centrality')
+
+
+def graph_to_dataframe(graph):
+   node_data = {node: graph.nodes[node] for node in graph.nodes()}
+   df = pd.DataFrame.from_dict(node_data, orient='index')
+   return df
+ 
+
+df_genesets_centralities = graph_to_dataframe(G)
+
+pos = nx.spring_layout(G)
+
+```
+
+```{python}
+
+draw(G, pos, nx.get_node_attributes(G,name="degree_centrality"),"Degree Centrality")
+
+draw(G, pos, nx.get_node_attributes(G,name="betweenness_centrality"),"Betweenness Centrality")
+
+draw(G, pos, nx.get_node_attributes(G,name="eigenvector_centrality"),"Eigenvector Centrality")
+
+```
+
+```{r}
+df_c <- py$df_genesets_centralities
+
+df_c <- df_c |> 
+  arrange(desc(eigenvector_centrality))
+
+```
+
+
+networkx for genes
+
+```{r}
+genes_coapprearence <- t(adj_matrix_ontology_genes) %*% adj_matrix_ontology_genes
+
+genes_coapprearence <- genes_coapprearence |> as.data.frame()
+```
+
+
+```{python}
+
+graph = r.genes_coapprearence
+
+G = nx.from_pandas_adjacency(graph, create_using=nx.Graph)
+G.remove_edges_from(nx.selfloop_edges(G))
+```
+
+```{python}
+degree_centrality = nx.degree_centrality(G)
+nx.set_node_attributes(G, degree_centrality, name='degree_centrality')
+
+betweenness_centrality = nx.betweenness_centrality(G, normalized=True)
+nx.set_node_attributes(G, betweenness_centrality, name='betweenness_centrality')
+
+eigenvector_centrality = nx.eigenvector_centrality(G, max_iter=1000000)
+nx.set_node_attributes(G, eigenvector_centrality, name='eigenvector_centrality')
+
+
+def graph_to_dataframe(graph):
+   node_data = {node: graph.nodes[node] for node in graph.nodes()}
+   df = pd.DataFrame.from_dict(node_data, orient='index')
+   return df
+ 
+
+df_genes_centralities = graph_to_dataframe(G)
+
+pos = nx.spring_layout(G)
+```
+
+```{python}
+
+draw(G, pos, nx.get_node_attributes(G,name="degree_centrality"),"Degree Centrality")
+
+draw(G, pos, nx.get_node_attributes(G,name="betweenness_centrality"),"Betweenness Centrality")
+
+draw(G, pos, nx.get_node_attributes(G,name="eigenvector_centrality"),"Eigenvector Centrality")
+
+```
+
+```{r}
+df_d <- py$df_genes_centralities
+
+df_d <- df_d |> 
+  arrange(desc(betweenness_centrality))
+
+```
+
+```{r}
+
+query <- res.lfc[which(res.lfc$SYMBOL=="GSK3B"),] |> rownames()
+
+res[which(rownames(res)==query),]
+```
+hacer spectral clustering y louvain clustering
 
 
 ## Conclusion
