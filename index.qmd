@@ -187,7 +187,7 @@ p <- ggplot(a, aes(log10(mean), lfc, colour = isDE)) +
     geom_hline(yintercept = c(-1, 1), color = "midnightblue") +
     scale_colour_manual(
       name = paste0("FDR = ", 0.05),
-      values = c(mnsl("5PB 2/4"), mnsl("5R 5/16")),
+      values = c(mnsl("10PB 5/8"), mnsl("5BG 7/8")),
       labels = c("no DE", "DE")
     ) +
     labs(
@@ -357,8 +357,8 @@ p <- visNetwork(nodes = data2$nodes, edges = data2$edges) %>%
     nodesIdSelection = TRUE
   ) %>%
   visPhysics(stabilization = FALSE) %>%
-  visGroups(groupname = "GeneSet", color = "rgb(187,210,185)") %>%
-  visGroups(groupname = "Feature", color = "rgb(255,192,139)")
+  visGroups(groupname = "GeneSet", color = "#48ABC7") %>%
+  visGroups(groupname = "Feature", color = "#8BE64AD0")
 
 htmltools::tagList(list(p))
 ```
