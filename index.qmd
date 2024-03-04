@@ -17,7 +17,7 @@ keywords:
   - ontologies
   - network
 abstract: |
-  This document is part of a series of the analysis of Omics data. Especifically, here is showed how to analyze bulk RNA-Seq data with Bioconductor packages. Also, it's showcased how to make plots of the rna data in the context of differentially gene expression and gene-sets. 
+  This document is part of a series of the analysis of Omics data. Especifically, here is showed how to analyze bulk RNA-Seq data with Bioconductor packages. Also, it's showcased how to make plots of the RNA data in the context of differentially gene expression and gene-sets. 
 plain-language-summary: |
   This document have a example of the analysis of bulk RNA-Seq data.
 key-points:
@@ -79,9 +79,10 @@ use_condaenv("C:/Users/LENOVO/miniconda3/envs/piero", required = TRUE)
 
 ### Data Loading
 
+For all the analysis the @airway dataset will be used. Also, the @DESeq2 package will be used for the differential gene expression step.
+
 ```{r}
 #| echo: true
-
 
 data("airway")
 
@@ -211,6 +212,8 @@ bslib::card(df, full_screen = T)
 
 ### Manipulating Annotation with a SQLite DB
 
+For this part of the analysis, is important to use annotation databases, in this case we are gonna use the human h19 genome annotation from the @org.Hs.eg.db package.
+
 ```{r}
 #| echo: true
 
@@ -251,7 +254,7 @@ res.lfc$SYMBOL <-
 
 ```
 
-### Construction of Ranks for fgsea
+### Construction of Ranks for `fgsea`
 
 ```{r}
 #| echo: true
@@ -270,6 +273,8 @@ res.lfc_ranks <-
 ```
 
 ### Data Manipulation for `GeneTonic`
+
+For this part of the process, the @clusterProfiler package will be used to make the gene sets enrichment analysis. Is important to mention that for this analysis we are gonna analyze only the biological process ontology,
 
 ```{r}
 #| echo: true
@@ -360,6 +365,8 @@ htmltools::tagList(list(p))
 
 ### `igraph` Object Manipulation
 
+In this part of the analysis, we are gonna make a network analysis with @networkx library from python. But, before that we need to manipulate the data to have a proper input.
+
 Let's build a bipartite undirected adjacency matrix.
 
 $$
@@ -418,7 +425,6 @@ Gene sets or genes with high hub scores may represent critical regulatory functi
 
 Gene sets or genes identified as high authorities could be central to multiple biological pathways, making them potential biomarkers for diseases or targets for therapeutic intervention. Their importance in various processes makes them subjects of interest for further research and analysis.
 
-
 ```{python}
 #| echo: true
 
@@ -451,7 +457,7 @@ htmltools::tagList(list(DT::datatable(df_b,extensions = 'Buttons', options = lis
 
 ```
 
-We can inspect the log fold change and p-values of some genes and gene sets with high scores. 
+We can inspect the log fold change and p-values of some genes and gene sets with high scores.
 
 ```{r}
 #| echo: true
@@ -558,7 +564,6 @@ htmltools::tagList(list(DT::datatable(df, extensions = 'Buttons', options = list
 ```
 
 Also, we can focus on the most connected component of the network
-
 
 ```{python}
 #| echo: true
@@ -673,7 +678,6 @@ htmltools::tagList(list(DT::datatable(df_c, extensions = 'Buttons', options = li
 
 ```
 
-
 ```{r}
 #| echo: true
 
@@ -692,13 +696,11 @@ termDesc(qterms)
 
 Gene co-involvement can be interpreted as the co-involvement of genes in multiple gene sets. The strength of co-involvement can be measured by the number of gene sets in which two genes are both involved.
 
-
 From a matrix $G_{mxn}$, with m gene sets and n genes, when can compute the gene set similarity matrix $C_{mxm}$ (where each element $c_{ij}$ represents the number of of shared genes between gene sets *i* and *j*) as followed:
 
 $$
 C = G^T*G
 $$
-
 
 ```{r}
 #| echo: true
