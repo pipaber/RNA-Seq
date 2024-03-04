@@ -12,12 +12,12 @@ author:
       - Visualization
 keywords:
   - RNA
-  - reads
   - gene expression
   - gene sets
   - ontologies
+  - network
 abstract: |
-  This document is part of a series of the analysis of Omics data. Especifycally, here is showed how to analyze bulk RNA-Seq data with Bioconductor packages. Also, it's showcased how to make plots of the rna data in the context of differentially gene expression and gene-sets. 
+  This document is part of a series of the analysis of Omics data. Especifically, here is showed how to analyze bulk RNA-Seq data with Bioconductor packages. Also, it's showcased how to make plots of the rna data in the context of differentially gene expression and gene-sets. 
 plain-language-summary: |
   This document have a example of the analysis of bulk RNA-Seq data.
 key-points:
@@ -32,12 +32,18 @@ number-sections: true
 
 ## Introduction
 
-hola
+The analysis of RNA-Seq data involves two distinct parts. The first one needs the use of servers or HPC (high performance computers) and has to do with quality control. pre-processing, alignment-mapping (usually with the STAR software) and counting (can be done using RSEM software). The second one is called downstream analysis and this part involves differential gene expression, gene sets analysis, etc.
+
+Due to the lack of facility to use a server or hpc the first part of the RNA-Seq analysis won't be done but, you can use the *rnaseq pipeline* from [nfcore](https://nf-co.re/rnaseq/3.14.0). In my experience, the best combination is to use fastq + STAR + RSEM combination of software for this part of the analysis.
+
+With respect to the second part of the analysis, on this document we'll see how to analyze the airway data set which is a treatment of dexametasome on specific cell lines. Specifically, differentially gene expression, gene sets enrichment analysis and network analysis will be performed.
 
 ## Data & Methods {#sec-data-methods}
 
+We are gonna use the airway dataset from the `airway` package. Part of the analysis will be: - Differential gene expression using `DESeq2`. - Gene set analysis with fgsea from Cluster profiler. - Network analysis with networkx.
+
 ```{r}
-#| echo: true
+#| echo: False
 
 library(airway)
 library(DESeq2)
@@ -51,12 +57,27 @@ library(htmltools)
 library(vsn)
 library(pheatmap)
 library(genefilter)
-library(EnsDb.Hsapiens.v75)
-library(org.Hs.eg.db)
 library(reticulate)
 library(igraph)
+library(apeglm)
+library(munsell)
+library(org.Hs.eg.db)
+library(rols)
+library(fgsea)
+library(GeneTonic)
+library(plotly)
+library(htmltools)
+library(htmlwidgets)
+library(viridis)
+library(clusterProfiler)
+library(scales)
+library(visNetwork)
+library(magrittr)
+
+use_condaenv("C:/Users/LENOVO/miniconda3/envs/piero", required = TRUE)
 ```
 
+### Data Loading
 
 ```{r}
 #| echo: true
@@ -68,7 +89,7 @@ dds <- DESeqDataSet(se = airway, design = ~ cell + dex)
 
 ```
 
-pre-filtering
+### Pre-filtering
 
 ```{r}
 #| echo: true
@@ -78,8 +99,7 @@ dds <- dds[keep,]
 
 ```
 
-
-re-leveling
+#### Re-leveling Factors
 
 ```{r}
 #| echo: true
@@ -89,9 +109,13 @@ dds$dex <- droplevels(dds$dex)
 
 ```
 
-quality control
+### Quality Control of Samples
+
+We can see how the variance is stabilized with the rlog transformation.
 
 ```{r}
+#| echo: true
+
 rld <- rlog(dds)
 
 hex_df<-data.frame(Means=rowMeans(assay(rld)),
@@ -110,8 +134,11 @@ bslib::card(full_screen = T, bslib::card_title("Stabilized Variance"), plotly::g
 
 ```
 
+Also, is important to check if appears some structure in the sample to sample distances plot.
 
 ```{r}
+#| echo: true
+
 dds<-estimateSizeFactors(dds)
 select <- order(rowMeans(counts(dds,normalized=TRUE)),
                 decreasing=TRUE)[1:20]
@@ -124,32 +151,16 @@ ggheat<-heatmaply(sampleDistMatrix,
             row_side_colors = colData(rld)[,c("dex","cell")],
             row_dend_left = F)
 
-bslib::card(full_screen = T, bslib::card_title("Stabilized Variance"), ggheat)
+bslib::card(full_screen = T, bslib::card_title("Sample-Sample Distance"), ggheat)
 ```
 
+### Differential Gene Expression (DGE)
 
-differential gene expression
-
-
-```{r}
-library(apeglm)
-library(munsell)
-library(org.Hs.eg.db)
-library(rols)
-library(fgsea)
-library(GeneTonic)
-library(plotly)
-library(htmltools)
-library(htmlwidgets)
-library(viridis)
-library(clusterProfiler)
-library(scales)
-library(ReactomePA)
-library(DOSE)
-```
-
+Let's calculate differential expressed genes using shrinked log2 fold changes threshold of 1 and an FDR of 0.05.
 
 ```{r}
+#| echo: true
+
 dds <- DESeq(dds)
 
 res <- results(dds, lfcThreshold = 1, alpha = 0.05, test = "Wald")
@@ -157,8 +168,11 @@ res <- results(dds, lfcThreshold = 1, alpha = 0.05, test = "Wald")
 res.lfc <- lfcShrink(dds, type = "apeglm", lfcThreshold = 1, coef = 5)
 ```
 
+We can see the MA plots as a general view of up and down regulated genes.
 
 ```{r}
+#| echo: true
+
 a<-plotMA(res.lfc,alpha=0.05,returnData=T)
 
 a$symbol<-rownames(a)
@@ -184,18 +198,23 @@ p <- ggplot(a, aes(log10(mean), lfc, colour = isDE)) +
 p
 ```
 
-top 20 expressed genes
+#### Top 20 Expressed Genes
 
 ```{r}
+#| echo: true
+
 df<-heatmaply::heatmaply(assay(rld)[select,],
                          col_side_colors=colData(rld)[,c("dex","cell")])
 
 bslib::card(df, full_screen = T)
 ```
 
-retrieving annotation from v75
+### Manipulating Annotation with a SQLite DB
 
 ```{r}
+#| echo: true
+
+
 k<-keys(org.Hs.eg.db)
 
 
@@ -232,9 +251,11 @@ res.lfc$SYMBOL <-
 
 ```
 
-construction of ranks
+### Construction of Ranks for fgsea
 
 ```{r}
+#| echo: true
+
 res.lfc_for_ranks <-
       res.lfc%>%
       as.data.frame()%>%
@@ -248,9 +269,11 @@ res.lfc_ranks <-
       deframe(res.lfc_for_ranks)
 ```
 
-genetonic workflow
+### Data Manipulation for `GeneTonic`
 
 ```{r}
+#| echo: true
+
 ranks_entrez<-bitr(names(res.lfc_ranks),fromType = "SYMBOL",toType = "ENTREZID",OrgDb = org.Hs.eg.db)
 
 entrez_res.lfc_ranks<-res.lfc_ranks[ranks_entrez$SYMBOL]
@@ -292,29 +315,33 @@ gtl_res_GOclu_BP <- GeneTonic_list(
 
 ```
 
-plots
+#### Summary Heatmap of Genesets
 
 ```{r}
+#| echo: true
+
 p<-gs_summary_heat(gtl = gtl_res_GOclu_BP,
                     n_gs=30)
-p
+
+bslib::card(plotly::ggplotly(p), full_screen = T)
 ```
 
-graphs
+#### GeneSets - Genes Graph
 
 ```{r}
-library(visNetwork)
-library(magrittr)
-
+#| echo: true
 
 ggs <- ggs_graph(gtl = gtl_res_GOclu_BP, n_gs = 100)
-data <- toVisNetworkData(ggs)
+ggs2 <- ggs_graph(gtl = gtl_res_GOclu_BP, n_gs = 20)
 
-data$nodes <- data$nodes %>%
+data <- toVisNetworkData(ggs)
+data2 <- toVisNetworkData(ggs2)
+
+data2$nodes <- data2$nodes %>%
   mutate(group = nodetype, nodetype = NULL) %>%
   dplyr::select(-color)
 
-p <- visNetwork(nodes = data$nodes, edges = data$edges) %>%
+p <- visNetwork(nodes = data2$nodes, edges = data2$edges) %>%
   visIgraphLayout() %>%
   visOptions(
     highlightNearest = list(
@@ -331,13 +358,23 @@ p <- visNetwork(nodes = data$nodes, edges = data$edges) %>%
 htmltools::tagList(list(p))
 ```
 
-igraph object manipulation
+### `igraph` Object Manipulation
 
-bipartite
+Let's build a bipartite undirected adjacency matrix.
+
+$$
+A = \begin{pmatrix}
+0_{r,r} & B\\
+B^{T} & 0_{s,s}
+\end{pmatrix}
+$$
+
 ```{r}
-V(ggs)$group <- data$nodes$group
+#| echo: true
 
-V(ggs)$type_bipartite <- as.integer(V(ggs)$group == "Feature")
+V(ggs)$group <- data$nodes$nodetype
+
+V(ggs)$type_bipartite <- as.integer(V(ggs)$nodetype == "Feature")
 
 
 adj_matrix_bipartite <- as.matrix(as_adjacency_matrix(ggs, sparse = FALSE)) |> as.data.frame()
@@ -345,19 +382,25 @@ adj_matrix_bipartite <- as.matrix(as_adjacency_matrix(ggs, sparse = FALSE)) |> a
 ```
 
 ```{python}
+#| echo: true
+#| output: false
+
 import pandas as pd
 import numpy as np
 import networkx as nx
 import seaborn as sns 
 from matplotlib import pyplot as plt
 
-graph = r.adj_matrix_bipartite
-
-G = nx.from_pandas_adjacency(graph, create_using=nx.DiGraph)
-
 ```
 
+Checking the degree distribution of the graph.
+
 ```{python}
+#| echo: true
+
+graph = r.adj_matrix_bipartite
+
+G = nx.from_pandas_adjacency(graph, create_using=nx.Graph)
 
 degree_sequence = sorted((i[1] for i in G.degree), reverse=True)
 
@@ -367,11 +410,19 @@ plt.show()
 
 ```
 
+#### Computing HITS (Hubs and Authorities) Scores.
+
+In the context of bioinformatics, applying the concept of hubs and authorities to analyze gene sets and individual genes can offer insightful perspectives on the functional importance and interaction dynamics within genetic networks.
+
+Gene sets or genes with high hub scores may represent critical regulatory functions or be involved in central biological processes. They could be key to understanding disease mechanisms, identifying potential therapeutic targets, or uncovering fundamental aspects of cellular function.
+
+Gene sets or genes identified as high authorities could be central to multiple biological pathways, making them potential biomarkers for diseases or targets for therapeutic intervention. Their importance in various processes makes them subjects of interest for further research and analysis.
+
 
 ```{python}
+#| echo: true
 
 h, a = nx.algorithms.link_analysis.hits(G, max_iter=1000000)
-# nx.set_node_attributes(G, metric, name='hubs_centrality')
 
 df_hubs = pd.DataFrame.from_dict(h, orient="index").sort_values(by=[0], ascending=False)
 df_authorities = pd.DataFrame.from_dict(a, orient="index").sort_values(by=[0], ascending=False)
@@ -379,6 +430,7 @@ df_authorities = pd.DataFrame.from_dict(a, orient="index").sort_values(by=[0], a
 ```
 
 ```{r}
+#| echo: true
 
 df_a <- py$df_hubs |> 
   rename("Hubs Centrality"="0")
@@ -386,32 +438,58 @@ df_a <- py$df_hubs |>
 df_b <- py$df_authorities |> 
   rename("Authorities Centrality" = "0")
 
-htmltools::tagList(list(DT::datatable(df_a)))
+htmltools::tagList(list(DT::datatable(df_a,extensions = 'Buttons', options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel')
+  ))))
 
-htmltools::tagList(list(DT::datatable(df_b)))
+htmltools::tagList(list(DT::datatable(df_b,extensions = 'Buttons', options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel')
+  ))))
 
 
 ```
+
+We can inspect the log fold change and p-values of some genes and gene sets with high scores. 
 
 ```{r}
-query <- res.lfc[which(res.lfc$SYMBOL=="FGFR2"),] |> rownames()
+#| echo: true
+
+# a gene
+
+query <- res.lfc[which(res.lfc$SYMBOL=="EPHB2"),] |> rownames()
 
 res[which(rownames(res)==query),]
+
+# a gene set
+
+query <- OlsSearch("cell projection morphogenesis", exact = T, ontology = "GO")
+query <- olsSearch(query)
+
+qterms <- as(query,"Terms")
+
+termOntology(qterms)
+termNamespace(qterms)
+termLabel(qterms)
+termDesc(qterms)
 ```
 
-
+Also, we can see the network colored by these scores.
 
 ```{python}
+#| echo: true
 
 import matplotlib.colors as mcolors
 
-def draw(G, pos, measures, measure_name):
+def draw(G, pos, measures, measure_name, norm=False):
     
     nodes = nx.draw_networkx_nodes(G, pos, node_size=10, cmap=plt.cm.plasma, 
                                    node_color=list(measures.values()),
                                    nodelist=measures.keys())
-    nodes.set_norm(mcolors.SymLogNorm(linthresh=0.01, linscale=1, base=10))
-    labels = nx.draw_networkx_labels(G, pos, font_size=0.4)
+    if norm == True:
+      nodes.set_norm(mcolors.SymLogNorm(linthresh=0.01, linscale=1, base=10))
+    # labels = nx.draw_networkx_labels(G, pos, font_size=0.4)
     edges = nx.draw_networkx_edges(G, pos)
 
     plt.title(measure_name)
@@ -423,14 +501,89 @@ pos = nx.spring_layout(G)
 
 draw(G, pos, h, 'DiGraph HITS Hubs')
 draw(G, pos, a, 'DiGraph HITS Authorities')
+
 ```
 
+Detecting communities within the network can helps us understand better the underlying biological process.
+
+```{python}
+#| echo: true
+
+from community import community_louvain
 
 
-unipartite
+partitions = community_louvain.best_partition(G)
+communities = [partitions.get(node) for node in G.nodes()]
+nx.set_node_attributes(G, partitions, name='community')
+
+
+colors = [G._node[n]['community'] for n in G._node]
+fig = plt.figure(figsize=(10, 10))
+ax = fig.add_subplot(111)
+ax.axis('off')
+spring_pos = nx.spring_layout(G, seed=123)
+n = nx.draw_networkx(G,
+                     spring_pos,
+                     ax=ax,
+                     node_size=30,
+                     with_labels=False,
+                     node_color=colors)
+plt.show()
+
+df = pd.DataFrame.from_dict(partitions, orient="index")
+
+```
+
+We can see the clusters and their respective members:
+
 ```{r}
+#| echo: true
 
-V(ggs)$group <- data$nodes$group
+df = py$df 
+df = df |> 
+  rename("Cluster" = "0") |> 
+  mutate(Nodes = rownames(df)) |> 
+  as_tibble()
+
+
+df |> 
+    group_by(Cluster) |> 
+    summarise(n = n())
+
+htmltools::tagList(list(DT::datatable(df, extensions = 'Buttons', options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel')
+  ))))
+
+```
+
+Also, we can focus on the most connected component of the network
+
+
+```{python}
+#| echo: true
+
+components = nx.connected_components(G)
+largest_component = max(components, key=len)
+
+print(f'The largest component have: {len(largest_component)}')
+
+H = G.subgraph(largest_component)
+
+partition = community_louvain.best_partition(H)
+communities = [partition.get(node) for node in H.nodes()]
+
+nx.set_node_attributes(H, partition, name='community')
+
+draw(H, spring_pos, partition,'Most Connected Component Clustered by Louvain')
+```
+
+If instead of analysis a bipartite network we want to analyze only gene sets or only genes we need to create two matrices: genesets_coupling matrix and gene_co_expression matrix.
+
+```{r}
+#| echo: true
+
+V(ggs)$group <- data$nodes$nodetype
 
 # ontologies <- V(ggs)[group == "GeneSet"]
 # genes <- V(ggs)[group == "Feature"]
@@ -449,11 +602,18 @@ ontology_coupling <- ontology_coupling |> as.data.frame()
 
 ```
 
+### Gene Sets Similarity
 
+Gene sets similarity can be thought of as the similarity between gene sets based on their shared genes. The strength of the similarity can be measured by the number of genes shared between gene sets.
 
-networkx for genesets
+From a matrix $G_{mxn}$, with m gene sets and n genes, when can compute the gene set similarity matrix $S_{mxm}$ (where each element $s_{ij}$ represents the number of of shared genes between gene sets *i* and *j*) as followed:
+
+$$
+S = G*G^T
+$$
 
 ```{python}
+#| echo: true
 
 graph = r.ontology_coupling
 
@@ -463,6 +623,7 @@ G.remove_edges_from(nx.selfloop_edges(G))
 ```
 
 ```{python}
+#| echo: true
 
 degree_centrality = nx.degree_centrality(G)
 nx.set_node_attributes(G, degree_centrality, name='degree_centrality')
@@ -487,6 +648,7 @@ pos = nx.spring_layout(G)
 ```
 
 ```{python}
+#| echo: true
 
 draw(G, pos, nx.get_node_attributes(G,name="degree_centrality"),"Degree Centrality")
 
@@ -497,24 +659,57 @@ draw(G, pos, nx.get_node_attributes(G,name="eigenvector_centrality"),"Eigenvecto
 ```
 
 ```{r}
+#| echo: true
+
 df_c <- py$df_genesets_centralities
 
 df_c <- df_c |> 
-  arrange(desc(eigenvector_centrality))
+  arrange(desc(betweenness_centrality))
+
+htmltools::tagList(list(DT::datatable(df_c, extensions = 'Buttons', options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel')
+  ))))
 
 ```
 
 
-networkx for genes
+```{r}
+#| echo: true
+
+query <- OlsSearch("detoxification of inorganic compound", exact = T, ontology = "GO")
+query <- olsSearch(query)
+
+qterms <- as(query,"Terms")
+
+termOntology(qterms)
+termNamespace(qterms)
+termLabel(qterms)
+termDesc(qterms)
+```
+
+### Gene Co-involvement
+
+Gene co-involvement can be interpreted as the co-involvement of genes in multiple gene sets. The strength of co-involvement can be measured by the number of gene sets in which two genes are both involved.
+
+
+From a matrix $G_{mxn}$, with m gene sets and n genes, when can compute the gene set similarity matrix $C_{mxm}$ (where each element $c_{ij}$ represents the number of of shared genes between gene sets *i* and *j*) as followed:
+
+$$
+C = G^T*G
+$$
+
 
 ```{r}
+#| echo: true
+
 genes_coapprearence <- t(adj_matrix_ontology_genes) %*% adj_matrix_ontology_genes
 
 genes_coapprearence <- genes_coapprearence |> as.data.frame()
 ```
 
-
 ```{python}
+#| echo: true
 
 graph = r.genes_coapprearence
 
@@ -523,6 +718,8 @@ G.remove_edges_from(nx.selfloop_edges(G))
 ```
 
 ```{python}
+#| echo: true
+
 degree_centrality = nx.degree_centrality(G)
 nx.set_node_attributes(G, degree_centrality, name='degree_centrality')
 
@@ -545,6 +742,7 @@ pos = nx.spring_layout(G)
 ```
 
 ```{python}
+#| echo: true
 
 draw(G, pos, nx.get_node_attributes(G,name="degree_centrality"),"Degree Centrality")
 
@@ -555,28 +753,35 @@ draw(G, pos, nx.get_node_attributes(G,name="eigenvector_centrality"),"Eigenvecto
 ```
 
 ```{r}
+#| echo: true
+
 df_d <- py$df_genes_centralities
 
 df_d <- df_d |> 
   arrange(desc(betweenness_centrality))
 
+htmltools::tagList(list(DT::datatable(df_d, extensions = 'Buttons', options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel')
+  ))))
+
 ```
 
 ```{r}
+#| echo: true
 
-query <- res.lfc[which(res.lfc$SYMBOL=="GSK3B"),] |> rownames()
+query <- res.lfc[which(res.lfc$SYMBOL=="LEP"),] |> rownames()
 
 res[which(rownames(res)==query),]
 ```
-hacer spectral clustering y louvain clustering
-
 
 ## Conclusion
 
-hola
+-   Differential gene expression analysis was performed on airway dataset.
+-   Gene sets enrichment analysis was performed on airway dataset.
+-   Network analysis was performed on airway dataset.
 
 ## References {.unnumbered}
 
-:::{#refs}
-
+::: {#refs}
 :::
