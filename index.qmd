@@ -129,7 +129,8 @@ gghex<-hex_df |>
   labs(x="Sorted mean of normalized counts per gene",
        y="Standard deviation of normalized counts per gene")+
   theme_minimal()+
-  geom_smooth(aes(Means,Sds),colour="red",linewidth=0.5)
+  geom_smooth(aes(Means,Sds),colour="red",linewidth=0.5) +
+  paletteer::scale_fill_paletteer_c("ggthemes::Green-Gold")
 
 bslib::card(full_screen = T, bslib::card_title("Stabilized Variance"), plotly::ggplotly(gghex))
 
@@ -150,14 +151,14 @@ sampleDistMatrix <- as.matrix(sampleDists)
 
 ggheat<-heatmaply(sampleDistMatrix,
             row_side_colors = colData(rld)[,c("dex","cell")],
-            row_dend_left = F)
+            row_dend_left = F,colors = viridis::magma(n=256, alpha = 0.8, begin = 0))
 
 bslib::card(full_screen = T, bslib::card_title("Sample-Sample Distance"), ggheat)
 ```
 
 ### Differential Gene Expression (DGE)
 
-Let's calculate differential expressed genes using shrinked log2 fold changes threshold of 1 and an FDR of 0.05.
+Let's calculate differential expressed genes using shrinked log2 fold changes with threshold of 1 and a FDR of 0.05.
 
 ```{r}
 #| echo: true
@@ -201,11 +202,14 @@ p
 
 #### Top 20 Expressed Genes
 
+As a general view, we can select the top 20 expressed genes ordered by the number of counts.
+
 ```{r}
 #| echo: true
 
 df<-heatmaply::heatmaply(assay(rld)[select,],
-                         col_side_colors=colData(rld)[,c("dex","cell")])
+                         col_side_colors=colData(rld)[,c("dex","cell")],
+                         colors = viridis::magma(n=256, alpha = 0.8, begin = 0))
 
 bslib::card(df, full_screen = T)
 ```
@@ -326,12 +330,14 @@ gtl_res_GOclu_BP <- GeneTonic_list(
 #| echo: true
 
 p<-gs_summary_heat(gtl = gtl_res_GOclu_BP,
-                    n_gs=30)
+                    n_gs=15)
 
-bslib::card(plotly::ggplotly(p), full_screen = T)
+p
 ```
 
 #### GeneSets - Genes Graph
+
+`GeneTonic` package have a lot of interactive plots that we can use to dig into our data. An example is a network of Gene sets and genes from which we are gonna perform a network analysis.
 
 ```{r}
 #| echo: true
@@ -365,7 +371,7 @@ htmltools::tagList(list(p))
 
 ### `igraph` Object Manipulation
 
-In this part of the analysis, we are gonna make a network analysis with @networkx library from python. But, before that we need to manipulate the data to have a proper input.
+In this part of the analysis, we are gonna make a network analysis with @networkx networkx library from python. But, before that we need to manipulate the data to have a proper input.
 
 Let's build a bipartite undirected adjacency matrix.
 
@@ -416,6 +422,8 @@ sns.rugplot(degree_sequence)
 plt.show()
 
 ```
+
+In this plot, we can see that there are two sub graphs with more than 100 connected components. We are gonna work with these.
 
 #### Computing HITS (Hubs and Authorities) Scores.
 
