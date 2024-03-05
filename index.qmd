@@ -686,6 +686,8 @@ htmltools::tagList(list(DT::datatable(df_c, extensions = 'Buttons', options = li
 
 ```
 
+We can sort the table by eigenvector centrality to see which gene sets are the most important in the network
+
 ```{r}
 #| echo: true
 
@@ -776,6 +778,8 @@ htmltools::tagList(list(DT::datatable(df_d, extensions = 'Buttons', options = li
   ))))
 
 ```
+
+We can sort the table by betweenness centrality to look for genes that serve as bridges or connectors within the network, facilitating the flow of information.
 
 ```{r}
 #| echo: true
