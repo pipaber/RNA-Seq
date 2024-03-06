@@ -342,7 +342,9 @@ p
 ```{r}
 #| echo: true
 
-ggs <- ggs_graph(gtl = gtl_res_GOclu_BP, n_gs = 100)
+# number_gs <- gtl_res_GOclu_BP$res_enrich$gs_id |> unique() |> length()
+
+ggs <- ggs_graph(gtl = gtl_res_GOclu_BP, n_gs = 500)
 ggs2 <- ggs_graph(gtl = gtl_res_GOclu_BP, n_gs = 20)
 
 data <- toVisNetworkData(ggs)
@@ -423,7 +425,7 @@ plt.show()
 
 ```
 
-In this plot, we can see that there are two sub graphs with more than 100 connected components. We are gonna work with these.
+In this plot, we can see that there are two sub graphs with more than 300 connected components. We are gonna work with these.
 
 #### Computing HITS (Hubs and Authorities) Scores.
 
@@ -447,10 +449,13 @@ df_authorities = pd.DataFrame.from_dict(a, orient="index").sort_values(by=[0], a
 #| echo: true
 
 df_a <- py$df_hubs |> 
-  rename("Hubs Centrality"="0")
+  rename("Hubs Centrality"="0") |> 
+  slice_head(n = 50)
+  
 
 df_b <- py$df_authorities |> 
-  rename("Authorities Centrality" = "0")
+  rename("Authorities Centrality" = "0") |> 
+  slice_head(n = 50)
 
 htmltools::tagList(list(DT::datatable(df_a,extensions = 'Buttons', options = list(
     dom = 'Bfrtip',
