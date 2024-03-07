@@ -425,7 +425,7 @@ plt.show()
 
 ```
 
-In this plot, we can see that there are two sub graphs with more than 300 connected components. We are gonna work with these.
+In this plot, we can see that there are two sub graphs with more than 120 connected components. We are gonna work with these.
 
 #### Computing HITS (Hubs and Authorities) Scores.
 
