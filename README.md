@@ -1,4 +1,4 @@
-## A Quarto Manuscript Template
+## An Example of ANalysis of Bulk RNA-Seq Data
 
-This is a template repo for generating a manuscript from Quarto that accompanies the tutorial at: [Quarto Manuscripts: RStudio](https://quarto.org/docs/manuscripts/authoring/rstudio.html)
+Please visit the [guide](https://pipaber.github.io/RNA-Seq/)
 
